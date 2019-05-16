@@ -1,5 +1,6 @@
 import os, errno
 import socket
+import time
 from threading import Thread
 from switch import Switch #import class switch from file switch
 import json
@@ -33,8 +34,7 @@ def send_data(clientsocket,data, size = None):
 
     #send SUCC flage to client
     clientsocket.sendall(SUCCCESS)
-
-    if size:
+    if not size:
         #calculate data size and incode it before send
         size = str(len(data)).encode('utf8')
     else:
@@ -44,12 +44,18 @@ def send_data(clientsocket,data, size = None):
     #send data size
     clientsocket.sendall(size)
     #send data
-    clientsocket.sendall(data.encode('utf8'))
+    if(type(data) == bytes):
+        clientsocket.sendall(data)
+    else:
+        clientsocket.sendall(data.encode('utf8'))
+    print(data)
 
 
 #handle the clinets connection
 def client_thread(clientsocket, ip, port,serverID , MAX_BUFFER = 4096):       # MAX_BUFFER_SIZE is how big the message can be
 
+    global root
+    current_location = None
 
     #recv user name from client
     size = clientsocket.recv(16)
@@ -59,21 +65,22 @@ def client_thread(clientsocket, ip, port,serverID , MAX_BUFFER = 4096):       # 
     #check if user exsist
     if not os.path.exists(os.getcwd()+'/'+clientName):
         #if not create new folder for user
-        os.mkdir(os.getcwd() + '/' + clientName)
+        os.mkdir(root + '\\' + clientName)
         clientsocket.sendall(SUCCCESS)
-        os.chdir('/'+clientName)
-        size = clientsocket.recv(16)
+        os.chdir(root + '\\' + clientName)
+        size = clientsocket.recv(16).decode('utf8')
         size = int(size, 2)
-        with open(clientName+'.json', "w+") as f:
+        with open(root + "\\" + clientName+'.json', "w+") as f:
             json.dump({"total_size" : size , "used_space" : 0}, f)
     else:
         #if exsist go to folder
-        os.chdir('/' + clientName)
+        os.chdir(root + '\\'  + clientName)
+
+    current_location = root + '\\'  + clientName
 
     #send 'connected signel'
     clientsocket.sendall(LOGGED)
 
-    global root
     with open(root + '\\' + clientName + '.json','r') as load:
         userCon = json.load(load)
 
@@ -94,7 +101,7 @@ def client_thread(clientsocket, ip, port,serverID , MAX_BUFFER = 4096):       # 
                 #incoming data folder path name
                 folderPath = clientsocket.recv(size).decode("utf8")
                 try:
-                    os.mkdir(os.getcwd() + '\\' +folderPath)
+                    os.makedirs(current_location + '\\' +folderPath)
                     clientsocket.sendall(SUCCCESS)
                 except FileExistsError as e:
                     error_replay(clientsocket,"Folder already exsist by that path\n")
@@ -104,12 +111,12 @@ def client_thread(clientsocket, ip, port,serverID , MAX_BUFFER = 4096):       # 
                 startpath =  root + '\\' + clientName
                 buffer = ''
                 #root - > current focuse folder, dirs - > folders in currnet folder, files - > file in current folder
-                for root, dirs, files in os.walk(startpath):
-                    level = root.replace(startpath, '').count(os.sep)
+                for roote, dirs, files in os.walk(startpath):
+                    level = roote.replace(startpath, '').count(os.sep)
                     indent = ' ' * (4 * (level) + 3)
-                    if os.getcwd() == root:
+                    if current_location == roote:
                         indent = indent[3:] + '-->'
-                    buffer += '{}{}/\n'.format(indent, os.path.basename(root))
+                    buffer += '{}{}/\n'.format(indent, os.path.basename(roote))
                     subindent = ' ' * 4 * (level + 1)
                     for f in files:
                         buffer += '{}{}\n'.format(subindent, f)
@@ -122,7 +129,7 @@ def client_thread(clientsocket, ip, port,serverID , MAX_BUFFER = 4096):       # 
                 file = clientsocket.recv(size).decode("utf8")
                 buffer = ''
                 #go through all files in root dir in search of the file
-                for root, dirs, files in os.walk(startpath):
+                for root, dirs, files in os.walk(root + '\\' + clientName):
                     if file in files:
                         buffer = root + '\\' + file
                 if buffer == '':
@@ -137,11 +144,11 @@ def client_thread(clientsocket, ip, port,serverID , MAX_BUFFER = 4096):       # 
                 size = int(size, 2)
                 #get full path name
                 fileFullPath = clientsocket.recv(size).decode("utf8")
-
+                print(current_location + '\\' + fileFullPath)
                 try:
-                    file_to_send = open(fileFullPath,'rb')
-                    file_size = os.path.getsize(fileFullPath)
-                    send_data(clientsocket,file_to_send.read(),file_size)
+                    with open(current_location + '\\' + fileFullPath,'rb') as file_to_send:
+                        file_size = os.path.getsize(current_location + '\\' + fileFullPath)
+                        send_data(clientsocket,file_to_send.read(),file_size)
                 except FileNotFoundError:
                     error_replay(clientsocket, "File not found\n")
 
@@ -153,16 +160,20 @@ def client_thread(clientsocket, ip, port,serverID , MAX_BUFFER = 4096):       # 
                 goto = clientsocket.recv(size).decode("utf8")
                 try:
                     #try to move to chdir
-                    os.chdir(goto)
+                    if not os.path.exists(current_location + '\\' + goto):
+                        raise Exception
+                    current_location = current_location + '\\' + goto
                     clientsocket.sendall(SUCCCESS)
-                except OSError as e:
+                except Exception:
                     try:
                         #failed so try from root dir
-                        os.chdir(root + '\\' + clientName + '\\' + goto)
+                        if not os.path.exists(root + '\\' + clientName + '\\' + goto):
+                            raise Exception
+                        current_location = root + '\\' + clientName + '\\' + goto
                         clientsocket.sendall(SUCCCESS)
-                    except  OSError as e:
+                    except  Exception:
                         #failed both local dir and root dir return error
-                        error_replay(clientsocket,"I/O error({0}): {1}".format(e.errno, e.strerror))
+                        error_replay(clientsocket,"failed both local dir and root dir")
 
 
             #load files from client folder to currnet folder
@@ -173,11 +184,11 @@ def client_thread(clientsocket, ip, port,serverID , MAX_BUFFER = 4096):       # 
                     size = int(size, 2)
                     #if no more data client will send 0 size
                     if size == 0:
-                        update_user_memory(clientName, current_free_space)
+                        #update_user_memory(clientName, current_free_space)
                         break
                     #get file path to load
                     file = clientsocket.recv(size).decode("utf8")
-                    file = os.getcwd() + '\\' + file
+                    file = current_location + '\\' + file
 
                     #recive file size
                     size = clientsocket.recv(32)
@@ -186,6 +197,7 @@ def client_thread(clientsocket, ip, port,serverID , MAX_BUFFER = 4096):       # 
                     if (size/(1024*1024)) > current_free_space:
                         error_replay(clientsocket,"Not enough free space")
                         break
+                    clientsocket.sendall(SUCCCESS)
 
                     #create the dir if not already exists
                     os.makedirs(os.path.dirname(file), exist_ok=True)
@@ -235,21 +247,24 @@ def client_thread(clientsocket, ip, port,serverID , MAX_BUFFER = 4096):       # 
                 #move back up 1 directory
                 if case(b'1000'):
                     try:
-                        if os.getcwd() == (root + "\\" + clientName):
+                        if current_location == (root + "\\" + clientName):
                             raise Exception('Cant go back, your in root directory')
+                        os.chdir(current_location)
                         os.chdir('..')
+                        current_location = os.getcwd()
                         clientsocket.sendall(SUCCCESS)
                     except OSError as e:
                         error_replay(clientsocket, e.strerror)
                     except Exception as e:
                         error_replay(clientsocket, e.__str__())
 
-                #close connection
-                if case(b'1001'):
-                    clientsocket.sendall(SUCCCESS)
-                    clientsocket.shutdown()
-                    clientsocket.close()
-                    return
+            #close connection
+            if case(b'1001'):
+                clientsocket.sendall(SUCCCESS)
+                clientsocket.close()
+                os.chdir(root)
+                print(os.getcwd())
+                return
 
 
 def get_ip():

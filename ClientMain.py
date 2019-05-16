@@ -11,27 +11,34 @@ import shutil
 import os
 import ntpath
 from pathlib import Path
+myClient = None
 
 while True:
-    folder = None
+    folder = ""
+    ip = ""
     folder = input("enter folder name: ")
-    if folder != None:
+    if folder != "":
         print("folder name: " + folder)
-        break
+        ip = input("enter IP: ")
+        if ip != "":
+            print("IP: " + ip)
+            myClient = device(folder, ip)
+            break
+
 
 while(True):
     option = None
     print("menu:\n"
-          "0 : new folder\n"
-          "1 : files list\n"
-          "2 : search\n"
-          "3 : download\n"
-          "4 : go to\n"
-          "5 : up load\n"
-          "6 : delete\n"
-          "7 : memory\n"
-          "8 : back\n"
-          "9 : exit")
+          "(0):new folder\t"
+          "(1):files list\t"
+          "(2):search\t"
+          "(3):download\t"
+          "(4):go to\t"
+          "(5):up load\t"
+          "(6):delete\t"
+          "(7):memory\t"
+          "(8):back\t"
+          "(9):exit")
 
     option = input("enter chosen number: \n")
 
@@ -58,34 +65,34 @@ while(True):
 
     with switch(option) as case:
         if case("new folder"):
-            print("0  new folder ;-)")
+            myClient.sendCommand(option)
 
         if case("files list"):
-            print("1  files list ;-)")
+            print(myClient.sendCommand(option))
 
         if case("search"):
-            print("2  search ;-)")
+           print(myClient.sendCommand(option))
 
         if case("download"):
-            print("3  download ;-)")
+            myClient.sendCommand(option)
 
         if case("go to"):
-            print("4  go to ;-)")
+            myClient.sendCommand(option)
 
         if case("up load"):
-            print("5  up load ;-)")
+            myClient.sendCommand(option)
 
         if case("delete"):
-            print("6  memory ;-)")
+            myClient.sendCommand(option)
 
         if case("memory"):
-            print("7  delete ;-)")
+            myClient.sendCommand(option)
 
         if case("back"):
-            print("8 back;-)")
+            myClient.sendCommand(option)
 
         if case("exit"):
-            print("9 exit")
+            myClient.sendCommand(option)
             break
 
 print("eoc")
