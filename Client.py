@@ -129,7 +129,7 @@ class device(ABC):
                 self.sock.sendall(b'0101')
                 for file in os.listdir('sendFiles'):
                     self.sendName(file)
-                    with open("sendFiles\\"+file, 'rb') as f:
+                    with open("sendFiles/"+file, 'rb') as f:
                         x = f.read()
                         self.sock.sendall(bin(len(x))[2:].encode('utf8').zfill(32))
                         y = self.respond()
@@ -142,19 +142,26 @@ class device(ABC):
 
             if case("delete"):
                 self.sock.sendall(b'0110')
+                self.sendName()
+                return self.respond()[1]
 
             if case("memory"):
                 self.sock.sendall(b'0111')
+                self.respond()
+                return self.resiveData(0)
 
             if case("back"):
-                self.sock.sendall(b'1000')
+            	self.sock.sendall(b'1000')
+            	x = self.respond()
+            	if not x[0]:
+            	     return x[1]
 
             if case("exit"):
                 self.sock.sendall(b'1001')
                 self.sock.close()
 
     def sendName(self, arg = None):
-        if not arg:
+        if arg == None:
             arg = input("enter folder full path:")
         size = bin(len(arg))[2:].zfill(16).encode('utf8')
         print(size,type(size))
@@ -167,7 +174,7 @@ class device(ABC):
             size = int(self.sock.recv(16).decode('utf8'))
             left = size
 
-            with open("Received\\" + data, 'wb+') as f:
+            with open("Received/" + data, 'wb+') as f:
                 while left > 0:
                     if left < MAX_BUFFER:
                         f.write(self.sock.recv(left))

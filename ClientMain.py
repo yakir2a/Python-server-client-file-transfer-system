@@ -74,22 +74,22 @@ while(True):
            print(myClient.sendCommand(option))
 
         if case("download"):
-            myClient.sendCommand(option)
+            print(myClient.sendCommand(option))
 
         if case("go to"):
-            myClient.sendCommand(option)
+            print(myClient.sendCommand(option))
 
         if case("up load"):
-            myClient.sendCommand(option)
+            print(myClient.sendCommand(option))
 
         if case("delete"):
-            myClient.sendCommand(option)
+            print(myClient.sendCommand(option))
 
         if case("memory"):
-            myClient.sendCommand(option)
+            print(myClient.sendCommand(option))
 
         if case("back"):
-            myClient.sendCommand(option)
+            print(myClient.sendCommand(option))
 
         if case("exit"):
             myClient.sendCommand(option)
